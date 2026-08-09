@@ -5,7 +5,9 @@ import type { ChildSummary, StoryPage } from "../types";
  * - Dev: unset -> /api is proxied by Vite to wrangler dev on :8787.
  * - Prod: set VITE_API_BASE to the deployed Worker URL, e.g. https://family-storybook-api.<account>.workers.dev
  */
-const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(/\/+$/, "");
+const DEFAULT_PROD_API_BASE = "https://family-storybook-api.inkhel.workers.dev";
+const envApiBase = import.meta.env.VITE_API_BASE as string | undefined;
+const API_BASE = (envApiBase || (import.meta.env.PROD ? DEFAULT_PROD_API_BASE : "")).replace(/\/+$/, "");
 
 function resolveImageUrl(url: string): string {
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
