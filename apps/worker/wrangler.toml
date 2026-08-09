@@ -10,7 +10,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "family-storybook"
-database_id = "00000000-0000-0000-0000-000000000000" # REPLACE: paste the id from `wrangler d1 create family-storybook`
+database_id = "a56f746b-bda6-4fb4-bfef-d09e6a7ea3e6"
 
 # ==== R2 bucket ====
 # Create it first:
