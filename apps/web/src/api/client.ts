@@ -1,4 +1,4 @@
-import type { ChildSummary, StoryPage } from "../types";
+import type { BookCover, ChildSummary, StoryPage } from "../types";
 
 /**
  * Base URL of the Cloudflare Worker API.
@@ -57,6 +57,42 @@ export async function updatePage(id: number, form: FormData): Promise<{ ok: true
 
 export async function deletePage(id: number): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/pages/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `Delete failed (${res.status})`);
+  return res.json();
+}
+
+export async function fetchCovers(): Promise<BookCover[]> {
+  const res = await fetch(`${API_BASE}/api/covers`);
+  if (!res.ok) throw new Error(`Failed to load covers (${res.status})`);
+  const covers = (await res.json()) as BookCover[];
+  return covers.map((c) => ({ ...c, image_url: resolveImageUrl(c.image_url) }));
+}
+
+export async function addCover(form: FormData): Promise<{ ok: true; id: number }> {
+  const res = await fetch(`${API_BASE}/api/covers`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.text()) || `Upload failed (${res.status})`);
+  return res.json();
+}
+
+export async function updateCover(id: number, form: FormData): Promise<{ ok: true; id: number }> {
+  const res = await fetch(`${API_BASE}/api/covers/${id}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.text()) || `Update failed (${res.status})`);
+  return res.json();
+}
+
+export async function deleteCover(id: number): Promise<{ ok: true; id: number }> {
+  const res = await fetch(`${API_BASE}/api/covers/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });

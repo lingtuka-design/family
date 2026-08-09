@@ -15,3 +15,12 @@ export interface ChildSummary {
   name: string;
   pageCount: number;
 }
+
+/** A child's book cover, shown on the home page (portrait 2:3). */
+export interface BookCover {
+  id: number;
+  child_name: string;
+  image_url: string;
+  pageCount: number;
+  created_at: string;
+}

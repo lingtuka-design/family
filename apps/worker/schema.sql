@@ -16,3 +16,11 @@ CREATE TABLE storybook_pages (
 );
 
 CREATE INDEX idx_storybook_pages_child ON storybook_pages (child_name, page_number);
+
+-- Book covers, one per child (portrait 2:3, shown on the home page)
+CREATE TABLE IF NOT EXISTS storybook_covers (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  child_name  TEXT NOT NULL UNIQUE,
+  image_url   TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);

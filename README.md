@@ -158,12 +158,16 @@ CREATE TABLE storybook_pages (
 | POST   | `/api/pages`            | New page: multipart `image` (PNG/JPG/WebP/GIF), `child_name`, `title`, `story_text`, `bg_color` |
 | PUT    | `/api/pages/:id`        | Update a page (all fields optional; `image` replaces the picture) |
 | DELETE | `/api/pages/:id`        | Delete a page (also removes its image from R2)    |
+| GET    | `/api/covers`           | Book covers with page counts (home page)          |
+| POST   | `/api/covers`           | Add a cover: multipart `image` + `child_name`     |
+| PUT    | `/api/covers/:id`       | Update a cover (name and/or image)                |
+| DELETE | `/api/covers/:id`       | Delete a cover (also removes its image from R2)   |
 
 ## Notes
 
-- **Lazy images**: the flipbook only mounts `<img>` tags for pages within 3 spreads of the
-  current page (`onFlip` updates the window), so long books never freeze the browser.
-  Images are also `loading="lazy"` + `decoding="async"`.
+- **Home page**: book covers in the standard portrait 2:3 ratio, three per row on desktop.
+  Children without a cover yet get a gradient placeholder. A dashed "Add a book cover" card
+  links straight to the admin section (`/admin#covers`). Clicking a cover opens the book.
 - **Responsive flipbook**: each page is a post-style page - a 3:2 cover photo at the top
   (any image format is auto-cropped to fit), the heading title below it, the story content
   beneath that, and the page number pinned to the bottom. Desktop shows a 2-page spread
