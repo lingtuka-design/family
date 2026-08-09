@@ -24,7 +24,7 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => origin ?? "*",
-    allowHeaders: ["Content-Type", "x-admin-token"],
+    allowHeaders: ["*"],
     allowMethods: ["GET", "POST", "OPTIONS"],
   })
 );
