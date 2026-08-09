@@ -164,10 +164,6 @@ CREATE TABLE storybook_pages (
 - **Lazy images**: the flipbook only mounts `<img>` tags for pages within 3 spreads of the
   current page (`onFlip` updates the window), so long books never freeze the browser.
   Images are also `loading="lazy"` + `decoding="async"`.
-- **Custom CSS 3D page-turn engine** (`PageTurnBook.tsx`): pages rotate around the spine with
-  perspective, a hinge shadow deepens mid-flip, and the top/bottom corners can be grabbed -
-  they curl up like real paper as you drag, then the page sweeps over. Swipe, arrow keys or
-  the Prev/Next buttons work too.
 - **Responsive flipbook**: each page is a post-style page - a 3:2 cover photo at the top
   (any image format is auto-cropped to fit), the heading title below it, the story content
   beneath that, and the page number pinned to the bottom. Desktop shows a 2-page spread
