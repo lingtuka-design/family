@@ -193,7 +193,7 @@ export function Flipbook({ childId }: { childId: string }) {
   }
 
   return (
-    <div className="flex justify-center py-8">
+    <div className="flex flex-col items-center py-8">
       <div ref={containerRef} className="w-full max-w-5xl">
         {pageWidth > 0 && (
           <HTMLFlipBook
@@ -206,11 +206,11 @@ export function Flipbook({ childId }: { childId: string }) {
             minHeight={280}
             maxHeight={pageHeight}
             drawShadow
-            flippingTime={700}
+            flippingTime={600}
             usePortrait={false}
             startZIndex={0}
             autoSize={false}
-            maxShadowOpacity={0.2}
+            maxShadowOpacity={0.55}
             showCover={false}
             mobileScrollSupport
             clickEventForward={false}
@@ -227,6 +227,11 @@ export function Flipbook({ childId }: { childId: string }) {
           </HTMLFlipBook>
         )}
       </div>
+      {/* soft shadow under the book, like it is lying on a table */}
+      <div
+        className="mt-5 h-5 w-3/5 rounded-[100%] bg-slate-900/20 blur-md"
+        aria-hidden="true"
+      />
     </div>
   );
 }
