@@ -16,8 +16,21 @@ function resolveImageUrl(url: string): string {
 }
 
 function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    /* Cloudflare Access returns 401 (instead of the login redirect) when a
+       session expires mid-page, so the app can show a "sign in again" message. */
+    "X-Requested-With": "XMLHttpRequest",
+  };
   const token = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
-  return token ? { "x-admin-token": token } : {};
+  if (token) headers["x-admin-token"] = token;
+  return headers;
+}
+
+async function errorFrom(res: Response): Promise<Error> {
+  if (res.status === 401) {
+    return new Error("Session expired (401) — please sign in again.");
+  }
+  return new Error((await res.text()) || `Request failed (${res.status})`);
 }
 
 /** Pages of one child (or ALL pages when childId is omitted - admin panel). */
@@ -41,7 +54,7 @@ export async function addPage(form: FormData): Promise<{ ok: true; id: number; p
     headers: authHeaders(),
     body: form,
   });
-  if (!res.ok) throw new Error((await res.text()) || `Upload failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }
 
@@ -51,7 +64,7 @@ export async function updatePage(id: number, form: FormData): Promise<{ ok: true
     headers: authHeaders(),
     body: form,
   });
-  if (!res.ok) throw new Error((await res.text()) || `Update failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }
 
@@ -60,7 +73,7 @@ export async function deletePage(id: number): Promise<{ ok: true; id: number }> 
     method: "DELETE",
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error((await res.text()) || `Delete failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }
 
@@ -77,7 +90,7 @@ export async function addCover(form: FormData): Promise<{ ok: true; id: number }
     headers: authHeaders(),
     body: form,
   });
-  if (!res.ok) throw new Error((await res.text()) || `Upload failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }
 
@@ -87,7 +100,7 @@ export async function updateCover(id: number, form: FormData): Promise<{ ok: tru
     headers: authHeaders(),
     body: form,
   });
-  if (!res.ok) throw new Error((await res.text()) || `Update failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }
 
@@ -96,6 +109,6 @@ export async function deleteCover(id: number): Promise<{ ok: true; id: number }>
     method: "DELETE",
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error((await res.text()) || `Delete failed (${res.status})`);
+  if (!res.ok) throw await errorFrom(res);
   return res.json();
 }

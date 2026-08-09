@@ -1,6 +1,7 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { rootRoute } from "./__root";
+import { AuthStatus } from "../components/AuthStatus";
 import { fetchChildren, fetchCovers } from "../api/client";
 import type { BookCover } from "../types";
 
@@ -146,7 +147,8 @@ function HomePage() {
         </div>
       )}
 
-      <footer className="mt-20 text-sm text-slate-400">
+      <footer className="mt-20 flex flex-col items-center gap-3 text-sm text-slate-400">
+        <AuthStatus />
         <Link to="/admin" className="underline decoration-dotted underline-offset-4 hover:text-slate-600">
           Admin — add pages or covers
         </Link>
