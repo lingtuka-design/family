@@ -8,7 +8,7 @@ import type { StoryPage } from "../types";
 
 /** Portrait page aspect (width : height). */
 const ASPECT = 1.41;
-/** Tailwind `md` breakpoint - below this we show one page per sheet. */
+/** Tailwind `md` breakpoint - below this the book shows one page per screen. */
 const MOBILE_BREAKPOINT = 768;
 
 /* ------------------------------------------------------------------ */
@@ -31,7 +31,7 @@ const FlipPage = forwardRef<HTMLDivElement, { children: ReactNode; style?: CSSPr
 
 /* ------------------------------------------------------------------ */
 /*  Lazy portrait - the browser only downloads the PNG for pages near  */
-/*  the current spread, so opening a long book never freezes the UI    */
+/*  the current page, so opening a long book never freezes the UI      */
 /* ------------------------------------------------------------------ */
 
 function LazyPortrait({
@@ -74,50 +74,15 @@ function LazyPortrait({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Page layouts                                                       */
+/*  Story page - the portrait PNG and the story text on ONE page.      */
+/*  Image on top (bg_color behind it), text directly below.            */
 /* ------------------------------------------------------------------ */
 
-/** Desktop left page: portrait PNG (transparent) on the bg_color. */
-function ImagePage({ page, eager }: { page: StoryPage; eager: boolean }) {
-  return (
-    <div className="flex h-full w-full flex-col" style={{ backgroundColor: page.bg_color }}>
-      <div className="flex flex-1 items-center justify-center p-4">
-        <LazyPortrait
-          src={page.image_url}
-          alt={`${page.child_name} - page ${page.page_number}`}
-          eager={eager}
-          className="max-h-full max-w-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-between px-5 pb-3 text-xs font-semibold uppercase tracking-widest opacity-60">
-        <span>{page.child_name}</span>
-        <span>{page.page_number}</span>
-      </div>
-    </div>
-  );
-}
-
-/** Desktop right page: the story text on the bg_color. */
-function TextPage({ page }: { page: StoryPage }) {
-  return (
-    <div className="flex h-full w-full flex-col px-7 py-8" style={{ backgroundColor: page.bg_color }}>
-      <span className="font-serif text-4xl font-bold opacity-15">{page.page_number}</span>
-      <p className="mt-3 whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800">
-        {page.story_text}
-      </p>
-      <span className="mt-auto pt-6 text-xs italic opacity-50">
-        The end of page {page.page_number}
-      </span>
-    </div>
-  );
-}
-
-/** Mobile/tablet single page: portrait on top, story text below. */
-function MobilePage({ page, eager }: { page: StoryPage; eager: boolean }) {
+function StoryPage({ page, eager }: { page: StoryPage; eager: boolean }) {
   return (
     <div className="flex h-full w-full flex-col">
       <div
-        className="relative flex h-[48%] items-center justify-center p-3"
+        className="relative flex h-[46%] items-center justify-center p-3"
         style={{ backgroundColor: page.bg_color }}
       >
         <LazyPortrait
@@ -171,6 +136,8 @@ export function Flipbook({ childId }: { childId: string }) {
     };
   }, []);
 
+  /* One story page per flipbook page. On desktop the book shows two
+     pages per spread; on mobile a single page fills the width. */
   const isMobile = view.width > 0 && view.width < MOBILE_BREAKPOINT;
   const gutter = isMobile ? 0 : 24;
 
@@ -184,34 +151,12 @@ export function Flipbook({ childId }: { childId: string }) {
   const children = useMemo(() => {
     if (!pages || pageWidth === 0) return [];
 
-    const out: ReactNode[] = [];
-
-    pages.forEach((page, i) => {
-      /* Index of the page in the book (2 per row on desktop, 1 on mobile). */
-      const index = isMobile ? i : i * 2;
-      const eager = Math.abs(index - currentPage) <= 3;
-
-      if (isMobile) {
-        out.push(
-          <FlipPage key={page.id} style={{ width: pageWidth, height: pageHeight }}>
-            <MobilePage page={page} eager={eager} />
-          </FlipPage>
-        );
-      } else {
-        /* A story "spread": left = image, right = text. */
-        out.push(
-          <FlipPage key={`${page.id}-image`} style={{ width: pageWidth, height: pageHeight }}>
-            <ImagePage page={page} eager={eager} />
-          </FlipPage>,
-          <FlipPage key={`${page.id}-text`} style={{ width: pageWidth, height: pageHeight }}>
-            <TextPage page={page} />
-          </FlipPage>
-        );
-      }
-    });
-
-    return out;
-  }, [pages, isMobile, pageWidth, pageHeight, currentPage]);
+    return pages.map((page, i) => (
+      <FlipPage key={page.id} style={{ width: pageWidth, height: pageHeight }}>
+        <StoryPage page={page} eager={Math.abs(i - currentPage) <= 2} />
+      </FlipPage>
+    ));
+  }, [pages, pageWidth, pageHeight, currentPage]);
 
   if (isLoading) {
     return <div className="py-32 text-center text-slate-400">Opening the book…</div>;
@@ -225,10 +170,7 @@ export function Flipbook({ childId }: { childId: string }) {
     return (
       <div className="py-32 text-center">
         <p className="text-lg text-slate-500">This book is still empty.</p>
-        <Link
-          to="/admin"
-          className="mt-4 inline-block text-sky-500 underline underline-offset-4"
-        >
+        <Link to="/admin" className="mt-4 inline-block text-sky-500 underline underline-offset-4">
           Write the first page
         </Link>
       </div>

@@ -161,7 +161,8 @@ CREATE TABLE storybook_pages (
 - **Lazy images**: the flipbook only mounts `<img>` tags for pages within 3 spreads of the
   current page (`onFlip` updates the window), so long books never freeze the browser.
   Images are also `loading="lazy"` + `decoding="async"`.
-- **Responsive flipbook**: below 768px each story row renders as a single page (image on
-  top, text below); on desktop each row is a 2-page spread (image left, text right).
-  The book remounts on layout changes so page sizes stay correct.
+- **Responsive flipbook**: each story page shows the portrait PNG on top (with its `bg_color`
+  background) and the story text directly below it, so picture and text always share one page.
+  Below 768px the book shows a single page per screen; on desktop it shows a 2-page spread
+  (two story pages side by side). The book remounts on layout changes so page sizes stay correct.
 - `react-pageflip` requires `react@18` — do not upgrade React to 19 in this project.
