@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Nunito", "system-ui", "sans-serif"],
-        serif: ["'Playfair Display'", "Georgia", "serif"],
+        sans: ["Roboto", "system-ui", "sans-serif"],
+        serif: ["Roboto", "system-ui", "sans-serif"],
       },
     },
   },
