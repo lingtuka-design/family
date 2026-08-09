@@ -1,30 +1,27 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
 import { createRoute, Link } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
 import { AdminForm } from "../components/AdminForm";
 import { AuthStatus } from "../components/AuthStatus";
 import { CoverManager } from "../components/CoverManager";
-import { auth, isAdminEmail, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "../lib/firebase";
+import { auth, isAdminEmail, onAuthStateChanged, signInWithGoogle, signOut } from "../lib/firebase";
 import type { User } from "firebase/auth";
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
-
 function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleGoogleLogin() {
     setError("");
     setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-    } catch {
-      setError("Incorrect email or password.");
+      await signInWithGoogle();
+    } catch (err) {
+      setError(
+        err instanceof Error && err.name === "auth/popup-closed-by-user"
+          ? "Sign-in cancelled."
+          : "Couldn't sign in with Google. Please try again."
+      );
     } finally {
       setBusy(false);
     }
@@ -36,51 +33,20 @@ function LoginScreen() {
         <p className="text-sm font-bold uppercase tracking-widest text-sky-500">Family Storybook</p>
         <h1 className="mt-2 font-serif text-3xl font-semibold text-slate-900">Admin sign in</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Only authorized family emails can access the admin panel.
+          Only authorized family Google accounts can access the admin panel.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-600" htmlFor="login-email">
-              Email
-            </label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-600" htmlFor="login-password">
-              Password
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className={inputClass}
-            />
-          </div>
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={busy}
+          className="mt-8 flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-8 py-3 font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <GoogleIcon />
+          {busy ? "Signing in…" : "Login with Google"}
+        </button>
 
-          {error && <p className="text-sm font-medium text-rose-500">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-full bg-sky-500 px-8 py-3 font-semibold text-white shadow-lg shadow-sky-200 transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+        {error && <p className="mt-4 text-center text-sm font-medium text-rose-500">{error}</p>}
 
         <p className="mt-6 text-center text-xs text-slate-400">
           <Link to="/" className="underline decoration-dotted underline-offset-4 hover:text-slate-600">
@@ -89,6 +55,29 @@ function LoginScreen() {
         </p>
       </div>
     </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+      />
+    </svg>
   );
 }
 

@@ -1,5 +1,11 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 import type { User } from "firebase/auth";
 
 const firebaseConfig = {
@@ -22,5 +28,14 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   return !!email && ALLOWED_ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }
 
-export { onAuthStateChanged, signInWithEmailAndPassword, signOut };
+/** Opens Google's sign-in popup. The signed-in user is then checked
+ *  against ALLOWED_ADMIN_EMAILS before the admin panel is shown. */
+export async function signInWithGoogle(): Promise<User> {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  const result = await signInWithPopup(auth, provider);
+  return result.user;
+}
+
+export { onAuthStateChanged, signOut };
 export type { User };
