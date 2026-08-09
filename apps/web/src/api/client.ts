@@ -3,13 +3,12 @@ import { auth } from "../lib/firebase";
 
 /**
  * Base URL of the Cloudflare Worker API.
- * - Dev: unset -> /api is proxied by Vite to wrangler dev on :8787.
- * - Prod: set in apps/web/.env.production (VITE_API_BASE).
+ * - Defaults to the live production Worker for both dev and prod.
+ * - Can be overridden locally by setting VITE_API_BASE in apps/web/.env
  */
-const DEFAULT_PROD_API_BASE = "https://family-storybook-api.inkhel.workers.dev";
+const DEFAULT_API_BASE = "https://family-storybook-api.inkhel.workers.dev";
 const API_BASE = (
-  (import.meta.env.VITE_API_BASE as string | undefined) ||
-  (import.meta.env.PROD ? DEFAULT_PROD_API_BASE : "")
+  (import.meta.env.VITE_API_BASE as string | undefined) || DEFAULT_API_BASE
 ).replace(/\/+$/, "");
 
 function resolveImageUrl(url: string): string {
