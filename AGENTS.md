@@ -7,7 +7,8 @@
    local state is current.
 2. Make changes.
 3. **Deploy to Cloudflare with Wrangler** (if the change affects the deployed app):
-   - Frontend (Pages): `npm run build:web`, then `npx wrangler pages deploy apps/web/dist`
+   - Frontend (Pages): `npm run build:web`, then `npx wrangler pages deploy apps/web/dist --project-name family-storybook --branch main --commit-dirty=true`
+     (branch `main` is the project's production branch — without it, deployments are preview-only)
    - API (Workers): `npm run deploy:worker` (deploys `apps/worker` via `wrangler.toml`)
 4. **Push back to GitHub**: `git add -A && git commit && git push origin master`.
 
@@ -31,5 +32,7 @@ If no Cloudflare deployment is needed (docs, config, etc.), skip step 3 and push
 ## Gotchas
 
 - `react-pageflip` requires React 18 — do not upgrade to React 19.
-- `VITE_API_BASE` must be set to the deployed Worker URL when building for production.
+- `VITE_API_BASE` must be set when building for production — `apps/web/.env.production` already
+  contains `https://family-storybook-api.inkhel.workers.dev` (worker account: inkhel).
+- Production Pages deployments require `--branch main` (see step 3).
 - Git identity is configured locally in this repo (lingtuka-design).

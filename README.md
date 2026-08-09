@@ -112,11 +112,13 @@ Visitors hitting `/admin*` now see the Access login screen. The rest of the site
 
 ```bash
 # 1) Worker API
-npm run deploy:worker                       # → https://family-storybook-api.<account>.workers.dev
+npm run deploy:worker                       # → https://family-storybook-api.inkhel.workers.dev
 
-# 2) Frontend (build with the API URL baked in)
-VITE_API_BASE=https://family-storybook-api.<account>.workers.dev npm run build:web
-npx wrangler pages deploy apps/web/dist     # → https://<project>.pages.dev
+# 2) Frontend (the repo's apps/web/.env.production already sets VITE_API_BASE)
+npm run build:web
+npx wrangler pages deploy apps/web/dist --project-name family-storybook --branch main
+# --branch main is REQUIRED: it is the project's production branch, otherwise the
+# deployment only reaches a preview URL and https://family-storybook.pages.dev stays 404.
 ```
 
 Windows PowerShell example:
