@@ -79,32 +79,42 @@ function LazyPortrait({
 /*  Mobile:  picture on top, text directly below.                      */
 /* ------------------------------------------------------------------ */
 
-function StoryPage({ page, eager, isMobile }: { page: StoryPage; eager: boolean; isMobile: boolean }) {
-  const imageArea = isMobile
-    ? "relative flex h-[46%] items-center justify-center p-3"
-    : "relative flex w-1/2 items-center justify-center p-4";
-  const textArea = isMobile
-    ? "flex flex-1 flex-col overflow-y-auto bg-white px-5 py-4"
-    : "flex w-1/2 flex-col overflow-y-auto bg-white px-6 py-5";
-
+function StoryPage({ page, eager }: { page: StoryPage; eager: boolean; isMobile?: boolean }) {
   return (
-    <div className={`flex h-full w-full ${isMobile ? "flex-col" : "flex-row"}`}>
-      <div className={imageArea} style={{ backgroundColor: page.bg_color }}>
+    <div
+      className="flex h-full w-full flex-col justify-between overflow-hidden p-6 sm:p-8"
+      style={{ backgroundColor: page.bg_color || "#FFFFFF" }}
+    >
+      {/* Top Fixed Image Frame */}
+      <div className="relative flex h-[48%] w-full items-center justify-center overflow-hidden rounded-md bg-slate-100/60 border border-slate-200/50 shadow-inner">
         <LazyPortrait
           src={page.image_url}
-          alt={`${page.child_name} - page ${page.page_number}`}
+          alt={page.title || `${page.child_name} - page ${page.page_number}`}
           eager={eager}
-          className="max-h-full max-w-full object-contain"
+          className="h-full w-full object-cover object-center"
         />
-        <span className="absolute right-3 top-3 rounded-full bg-white/70 px-2.5 py-1 text-xs font-bold text-slate-600 backdrop-blur">
-          {page.page_number}
-        </span>
       </div>
-      <div className={textArea}>
-        <h2 className="font-serif text-lg font-semibold text-slate-800">{page.child_name}</h2>
-        <p className="mt-2 whitespace-pre-wrap font-serif text-sm leading-6 text-slate-700">
+
+      {/* Middle Section: Title & Story Text */}
+      <div className="flex flex-1 flex-col items-center justify-start overflow-y-auto px-2 pt-4 pb-2 text-center">
+        {page.title ? (
+          <h2 className="font-serif text-xl sm:text-2xl font-black italic uppercase tracking-wider text-slate-900">
+            {page.title}
+          </h2>
+        ) : (
+          <h2 className="font-serif text-lg font-bold italic uppercase tracking-wider text-slate-700">
+            {page.child_name}
+          </h2>
+        )}
+
+        <p className="mt-4 font-serif text-sm sm:text-base leading-relaxed text-slate-800 whitespace-pre-wrap text-left sm:text-center">
           {page.story_text}
         </p>
+      </div>
+
+      {/* Bottom Section: Page Number */}
+      <div className="pt-2 text-center font-serif text-xs sm:text-sm font-medium text-slate-500">
+        Page {page.page_number}
       </div>
     </div>
   );

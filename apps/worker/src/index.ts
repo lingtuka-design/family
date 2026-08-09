@@ -13,6 +13,7 @@ type StoryPage = {
   child_name: string;
   page_number: number;
   image_url: string;
+  title: string;
   story_text: string;
   bg_color: string;
   created_at: string;
@@ -25,7 +26,7 @@ app.use(
   cors({
     origin: (origin) => origin ?? "*",
     allowHeaders: ["*"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
 
@@ -83,7 +84,7 @@ app.get("/api/images/:key{.*}", async (c) => {
   return new Response(object.body, { headers });
 });
 
-/** Upload a new page: multipart form with image, child_name, story_text, bg_color. */
+/** Upload a new page: multipart form with image, child_name, title, story_text, bg_color. */
 app.post("/api/pages", async (c) => {
   const forbidden = adminOnly(c);
   if (forbidden) return forbidden;
@@ -91,24 +92,26 @@ app.post("/api/pages", async (c) => {
   const body = await c.req.parseBody();
 
   const childName = String(body["child_name"] ?? "").trim();
+  const title = String(body["title"] ?? "").trim();
   const storyText = String(body["story_text"] ?? "").trim();
   const rawBg = String(body["bg_color"] ?? "");
-  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : "#F0F8FF";
+  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : "#FFFFFF";
   const image = body["image"];
 
   if (!childName) return c.json({ error: "child_name is required" }, 400);
+  if (!title) return c.json({ error: "title is required" }, 400);
   if (!storyText) return c.json({ error: "story_text is required" }, 400);
   if (typeof image !== "object" || !(image instanceof File)) {
-    return c.json({ error: "A PNG image file is required" }, 400);
-  }
-  if (image.type !== "image/png" && !image.name.toLowerCase().endsWith(".png")) {
-    return c.json({ error: "Only PNG images are supported" }, 400);
+    return c.json({ error: "An image file is required" }, 400);
   }
 
-  // Upload to R2, keyed by child slug so images are easy to browse in the dashboard.
+  const mimeType = image.type || "image/png";
+  const ext = image.name.split(".").pop()?.toLowerCase() || "png";
+
+  // Upload to R2
   const slug = childName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  const key = `${slug}/${Date.now()}-${crypto.randomUUID()}.png`;
-  await c.env.IMAGES.put(key, image, { httpMetadata: { contentType: "image/png" } });
+  const key = `${slug}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  await c.env.IMAGES.put(key, image, { httpMetadata: { contentType: mimeType } });
 
   // Append after the current last page.
   const row = await c.env.DB.prepare(
@@ -122,13 +125,68 @@ app.post("/api/pages", async (c) => {
 
   const imageUrl = `/api/images/${key}`;
   await c.env.DB.prepare(
-    `INSERT INTO storybook_pages (child_name, page_number, image_url, story_text, bg_color, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO storybook_pages (child_name, page_number, image_url, title, story_text, bg_color, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(childName, pageNumber, imageUrl, storyText, bgColor, new Date().toISOString())
+    .bind(childName, pageNumber, imageUrl, title, storyText, bgColor, new Date().toISOString())
     .run();
 
   return c.json({ ok: true, child_name: childName, page_number: pageNumber });
+});
+
+/** Update an existing page (title, story_text, bg_color, optional new image). */
+app.put("/api/pages/:id", async (c) => {
+  const forbidden = adminOnly(c);
+  if (forbidden) return forbidden;
+
+  const idParam = c.req.param("id");
+  const id = parseInt(idParam, 10);
+  if (isNaN(id)) return c.json({ error: "Invalid page ID" }, 400);
+
+  const page = await c.env.DB.prepare(`SELECT * FROM storybook_pages WHERE id = ?`)
+    .bind(id)
+    .first<StoryPage>();
+  if (!page) return c.json({ error: "Page not found" }, 404);
+
+  const body = await c.req.parseBody();
+  const title = String(body["title"] ?? page.title).trim();
+  const storyText = String(body["story_text"] ?? page.story_text).trim();
+  const rawBg = String(body["bg_color"] ?? page.bg_color);
+  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : page.bg_color;
+
+  let imageUrl = page.image_url;
+  const newImage = body["image"];
+  if (typeof newImage === "object" && newImage instanceof File && newImage.size > 0) {
+    const mimeType = newImage.type || "image/png";
+    const ext = newImage.name.split(".").pop()?.toLowerCase() || "png";
+    const slug = page.child_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const key = `${slug}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(key, newImage, { httpMetadata: { contentType: mimeType } });
+    imageUrl = `/api/images/${key}`;
+  }
+
+  await c.env.DB.prepare(
+    `UPDATE storybook_pages
+     SET title = ?, story_text = ?, bg_color = ?, image_url = ?
+     WHERE id = ?`
+  )
+    .bind(title, storyText, bgColor, imageUrl, id)
+    .run();
+
+  return c.json({ ok: true, id });
+});
+
+/** Delete a page. */
+app.delete("/api/pages/:id", async (c) => {
+  const forbidden = adminOnly(c);
+  if (forbidden) return forbidden;
+
+  const idParam = c.req.param("id");
+  const id = parseInt(idParam, 10);
+  if (isNaN(id)) return c.json({ error: "Invalid page ID" }, 400);
+
+  await c.env.DB.prepare(`DELETE FROM storybook_pages WHERE id = ?`).bind(id).run();
+  return c.json({ ok: true, id });
 });
 
 export default app;

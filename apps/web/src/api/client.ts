@@ -35,3 +35,23 @@ export async function addPage(form: FormData): Promise<{ ok: true; page_number: 
   if (!res.ok) throw new Error((await res.text()) || `Upload failed (${res.status})`);
   return res.json();
 }
+
+export async function updatePage(id: number, form: FormData): Promise<{ ok: true; id: number }> {
+  const headers: Record<string, string> = {};
+  const token = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
+  if (token) headers["x-admin-token"] = token;
+
+  const res = await fetch(`${API_BASE}/api/pages/${id}`, { method: "PUT", headers, body: form });
+  if (!res.ok) throw new Error((await res.text()) || `Update failed (${res.status})`);
+  return res.json();
+}
+
+export async function deletePage(id: number): Promise<{ ok: true; id: number }> {
+  const headers: Record<string, string> = {};
+  const token = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
+  if (token) headers["x-admin-token"] = token;
+
+  const res = await fetch(`${API_BASE}/api/pages/${id}`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error((await res.text()) || `Delete failed (${res.status})`);
+  return res.json();
+}

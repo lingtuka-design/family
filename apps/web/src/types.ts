@@ -4,6 +4,7 @@ export interface StoryPage {
   child_name: string;
   page_number: number;
   image_url: string;
+  title: string;
   story_text: string;
   bg_color: string;
   created_at: string;
