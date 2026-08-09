@@ -17,11 +17,9 @@ export function AdminForm() {
     queryFn: fetchChildren,
   });
 
-  const knownChildrenNames = Array.from(
-    new Set(["Vena", "Kimi", ...(childrenList?.map((c) => c.name) ?? [])])
-  );
+  const dynamicChildren = childrenList?.map((c) => c.name) ?? [];
 
-  const [selectedChild, setSelectedChild] = useState<string>("Vena");
+  const [selectedChild, setSelectedChild] = useState<string>("");
   const [customChild, setCustomChild] = useState<string>("");
 
   const activeChildName = selectedChild === "__new__" ? customChild.trim() : selectedChild.trim();
@@ -41,7 +39,7 @@ export function AdminForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
 
-  // Edit Page Modal/Inline State
+  // Edit Page Modal State
   const [editingPage, setEditingPage] = useState<StoryPage | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editStory, setEditStory] = useState("");
@@ -56,22 +54,22 @@ export function AdminForm() {
 
     if (!activeChildName) {
       setStatus("error");
-      setMessage("Choose a child or type a new one.");
+      setMessage("Please choose a child name or enter a new child's name.");
       return;
     }
     if (!title.trim()) {
       setStatus("error");
-      setMessage("Title is required (e.g. VENA A PIANG).");
+      setMessage("Heading Title is required (e.g. VENA A PIANG).");
       return;
     }
     if (!file) {
       setStatus("error");
-      setMessage("Please attach an image for this page.");
+      setMessage("Please select a photo/image file.");
       return;
     }
     if (!story.trim()) {
       setStatus("error");
-      setMessage("Write story text first.");
+      setMessage("Please write the story text.");
       return;
     }
 
@@ -86,7 +84,7 @@ export function AdminForm() {
     try {
       const result = await addPage(form);
       setStatus("success");
-      setMessage(`Saved page ${result.page_number} for ${activeChildName}!`);
+      setMessage(`Successfully saved page ${result.page_number} for ${activeChildName}!`);
       queryClient.invalidateQueries({ queryKey: ["children"] });
       queryClient.invalidateQueries({ queryKey: ["pages", activeChildName.toLowerCase()] });
 
@@ -118,7 +116,7 @@ export function AdminForm() {
 
     if (!editTitle.trim()) {
       setEditStatus("error");
-      setEditMessage("Title cannot be empty.");
+      setEditMessage("Heading Title cannot be empty.");
       return;
     }
     if (!editStory.trim()) {
@@ -158,25 +156,26 @@ export function AdminForm() {
   }
 
   return (
-    <div className="mt-8 space-y-12">
-      {/* Top Child Switcher */}
-      <div className="rounded-3xl border border-white bg-white/80 p-6 shadow-lg shadow-rose-100/50 backdrop-blur">
-        <label className="mb-2 block text-sm font-bold text-slate-700" htmlFor="child-select">
-          Select Child Book to Manage:
+    <div className="mt-8 space-y-10">
+      {/* 1. Child Selection / Addition Section */}
+      <div className="rounded-3xl border border-sky-100 bg-white/90 p-6 shadow-lg shadow-sky-50 backdrop-blur">
+        <label className="mb-2 block text-sm font-bold text-slate-800" htmlFor="child-select">
+          Select or Add Child:
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <select
             id="child-select"
             value={selectedChild}
             onChange={(e) => setSelectedChild(e.target.value)}
-            className={`${inputClass} max-w-xs font-semibold`}
+            className={`${inputClass} max-w-sm font-semibold`}
           >
-            {knownChildrenNames.map((name) => (
+            <option value="">-- Choose a Child --</option>
+            {dynamicChildren.map((name) => (
               <option key={name} value={name}>
                 📖 {name}'s Book
               </option>
             ))}
-            <option value="__new__">＋ Add a new child…</option>
+            <option value="__new__">＋ Add a New Child…</option>
           </select>
 
           {selectedChild === "__new__" && (
@@ -184,32 +183,33 @@ export function AdminForm() {
               type="text"
               value={customChild}
               onChange={(e) => setCustomChild(e.target.value)}
-              placeholder="New child's name, e.g. Mia"
-              className={`${inputClass} max-w-xs`}
+              placeholder="Enter child's name (e.g. Vena, Kimi, Mia)"
+              className={`${inputClass} max-w-sm`}
             />
           )}
         </div>
       </div>
 
-      {/* Add New Page Form */}
+      {/* 2. Add New Page Form */}
       <form
         onSubmit={handleAddSubmit}
-        className="space-y-6 rounded-3xl border border-white bg-white/80 p-8 shadow-xl shadow-rose-100/50 backdrop-blur"
+        className="space-y-6 rounded-3xl border border-white bg-white/90 p-8 shadow-xl shadow-slate-100 backdrop-blur"
       >
         <div className="border-b border-slate-100 pb-4">
           <h2 className="text-xl font-bold text-slate-900">
-            Add New Page for <span className="text-sky-600">{activeChildName || "Child"}</span>
+            Post / Add New Page {activeChildName ? `for ${activeChildName}` : ""}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Fill in the title, text, background color, and picture for the story page.
+            Fill in the heading title, story text, photo, and background color.
           </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
-          {/* Page Title */}
+          {/* HEADING TITLE INPUT */}
           <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="page-title">
-              Page Title <span className="text-slate-400 font-normal">(e.g. VENA A PIANG)</span>
+            <label className="mb-1.5 block text-sm font-bold text-slate-800" htmlFor="page-title">
+              Heading Title <span className="text-rose-500">*</span>{" "}
+              <span className="font-normal text-slate-400">(e.g. VENA A PIANG)</span>
             </label>
             <input
               id="page-title"
@@ -217,14 +217,34 @@ export function AdminForm() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="VENA A PIANG"
-              className={`${inputClass} font-serif font-bold italic tracking-wide`}
+              className={`${inputClass} font-serif font-bold italic tracking-wide text-base border-sky-200 focus:border-sky-500`}
             />
           </div>
 
-          {/* Background color */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="bg-color">
-              Page background color
+          {/* Photo / Image Upload */}
+          <div className="sm:col-span-1">
+            <label className="mb-1.5 block text-sm font-bold text-slate-800" htmlFor="image-input">
+              Photo / Image <span className="text-rose-500">*</span>{" "}
+              <span className="font-normal text-slate-400">(JPG, PNG, WEBP)</span>
+            </label>
+            <input
+              id="image-input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-sky-100 file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-sky-700 hover:file:bg-sky-200`}
+            />
+            {file && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                {file.name} · {(file.size / 1024).toFixed(0)} KB
+              </p>
+            )}
+          </div>
+
+          {/* Background Color */}
+          <div className="sm:col-span-1">
+            <label className="mb-1.5 block text-sm font-bold text-slate-800" htmlFor="bg-color">
+              Page Background Color
             </label>
             <div className="flex items-center gap-3">
               <input
@@ -246,29 +266,10 @@ export function AdminForm() {
             </div>
           </div>
 
-          {/* Image upload */}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="image-input">
-              Photo / Image <span className="font-normal text-slate-400">(JPG, PNG, WEBP)</span>
-            </label>
-            <input
-              id="image-input"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-sky-100 file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-sky-700 hover:file:bg-sky-200`}
-            />
-            {file && (
-              <p className="mt-1.5 text-xs text-slate-500">
-                {file.name} · {(file.size / 1024).toFixed(0)} KB
-              </p>
-            )}
-          </div>
-
-          {/* Story text */}
+          {/* Story Text Area */}
           <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="story-text">
-              Story Text
+            <label className="mb-1.5 block text-sm font-bold text-slate-800" htmlFor="story-text">
+              Story Text <span className="text-rose-500">*</span>
             </label>
             <textarea
               id="story-text"
@@ -276,7 +277,7 @@ export function AdminForm() {
               value={story}
               onChange={(e) => setStory(e.target.value)}
               placeholder="Vena hi kum 2021 September ni 13 khan Ebenezer Hospital-ah a piang a..."
-              className={`${inputClass} resize-y font-serif leading-7`}
+              className={`${inputClass} resize-y font-serif leading-relaxed text-base`}
             />
           </div>
         </div>
@@ -300,35 +301,34 @@ export function AdminForm() {
             disabled={status === "saving"}
             className="rounded-full bg-sky-500 px-8 py-3 font-semibold text-white shadow-lg shadow-sky-200 transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {status === "saving" ? "Saving…" : "Save New Page"}
+            {status === "saving" ? "Saving…" : "Save / Post Page"}
           </button>
         </div>
       </form>
 
-      {/* Existing Pages List for Active Child */}
-      <div className="space-y-6">
-        <h3 className="text-xl font-bold text-slate-900">
-          Existing Pages for <span className="text-sky-600">{activeChildName}</span>
-        </h3>
+      {/* 3. Existing Pages Management List */}
+      {activeChildName && (
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold text-slate-900">
+            Existing Pages for <span className="text-sky-600">{activeChildName}</span>
+          </h3>
 
-        {isLoadingPages && <p className="text-slate-400">Loading pages…</p>}
+          {isLoadingPages && <p className="text-slate-400">Loading pages…</p>}
 
-        {activeChildPages && activeChildPages.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            No pages found for {activeChildName}. Fill out the form above to add the first page!
-          </div>
-        )}
+          {activeChildPages && activeChildPages.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+              No pages added for {activeChildName} yet.
+            </div>
+          )}
 
-        {activeChildPages && activeChildPages.length > 0 && (
-          <div className="grid gap-6 sm:grid-cols-2">
-            {activeChildPages.map((p) => (
-              <div
-                key={p.id}
-                className="flex flex-col justify-between rounded-2xl border border-white bg-white/90 p-5 shadow-lg shadow-slate-100 backdrop-blur"
-              >
-                <div>
-                  {/* Thumbnail and Header */}
-                  <div className="flex items-start justify-between gap-4">
+          {activeChildPages && activeChildPages.length > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2">
+              {activeChildPages.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex flex-col justify-between rounded-2xl border border-white bg-white/90 p-5 shadow-lg shadow-slate-100 backdrop-blur"
+                >
+                  <div>
                     <div className="flex items-center gap-3">
                       <img
                         src={p.image_url}
@@ -344,35 +344,34 @@ export function AdminForm() {
                         </h4>
                       </div>
                     </div>
+
+                    <p className="mt-3 line-clamp-3 font-serif text-sm leading-relaxed text-slate-600">
+                      {p.story_text}
+                    </p>
                   </div>
 
-                  <p className="mt-3 line-clamp-3 font-serif text-sm leading-relaxed text-slate-600">
-                    {p.story_text}
-                  </p>
+                  <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => startEditing(p)}
+                      className="rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                    >
+                      ✏️ Edit Page
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      className="rounded-lg bg-rose-50 px-4 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => startEditing(p)}
-                    className="rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-                  >
-                    ✏️ Edit Page
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(p.id)}
-                    className="rounded-lg bg-rose-50 px-4 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Edit Page Modal */}
       {editingPage && (
@@ -392,10 +391,9 @@ export function AdminForm() {
             </div>
 
             <form onSubmit={handleUpdateSubmit} className="mt-6 space-y-5">
-              {/* Title */}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">
-                  Page Title
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Heading Title
                 </label>
                 <input
                   type="text"
@@ -405,9 +403,8 @@ export function AdminForm() {
                 />
               </div>
 
-              {/* Story Text */}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">
+                <label className="mb-1 block text-sm font-bold text-slate-800">
                   Story Text
                 </label>
                 <textarea
@@ -418,10 +415,9 @@ export function AdminForm() {
                 />
               </div>
 
-              {/* Background Color */}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">
-                  Background Color
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Page Background Color
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -439,9 +435,8 @@ export function AdminForm() {
                 </div>
               </div>
 
-              {/* Optional Replacement Image */}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">
+                <label className="mb-1 block text-sm font-bold text-slate-800">
                   Replace Image <span className="font-normal text-slate-400">(Optional)</span>
                 </label>
                 <input
