@@ -18,9 +18,17 @@ function AdminPage() {
         <Link to="/" className="text-sm font-semibold text-slate-500 hover:text-sky-600">
           ← Home
         </Link>
-        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
-          Admin
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
+            Admin
+          </span>
+          <a
+            href="/cdn-cgi/access/logout"
+            className="rounded-full bg-rose-100 px-3.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-200"
+          >
+            🔒 Log out
+          </a>
+        </div>
       </header>
 
       <h1 className="mt-8 font-serif text-4xl font-semibold text-slate-900">Storybook admin</h1>
