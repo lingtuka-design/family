@@ -4,8 +4,11 @@ import { rootRoute } from "./__root";
 import { AdminForm } from "../components/AdminForm";
 import { AuthStatus } from "../components/AuthStatus";
 import { CoverManager } from "../components/CoverManager";
+import { PagesList } from "../components/PagesList";
 import { auth, isAdminEmail, onAuthStateChanged, signInWithGoogle, signOut } from "../lib/firebase";
 import type { User } from "firebase/auth";
+
+type Tab = "create" | "pages" | "covers";
 
 function LoginScreen() {
   const [error, setError] = useState("");
@@ -16,12 +19,8 @@ function LoginScreen() {
     setBusy(true);
     try {
       await signInWithGoogle();
-    } catch (err) {
-      setError(
-        err instanceof Error && err.name === "auth/popup-closed-by-user"
-          ? "Sign-in cancelled."
-          : "Couldn't sign in with Google. Please try again."
-      );
+    } catch {
+      setError("Couldn't sign in with Google. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -103,12 +102,40 @@ function DeniedScreen({ user }: { user: User }) {
 }
 
 function AdminContent() {
-  /* When arriving via the home page's "Add a book cover" button (#covers). */
-  useEffect(() => {
-    if (window.location.hash === "#covers") {
-      document.getElementById("covers-section")?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, []);
+  const [tab, setTab] = useState<Tab>(() => {
+    const h = window.location.hash;
+    if (h === "#covers") return "covers";
+    if (h === "#pages") return "pages";
+    return "create";
+  });
+  const [selectedChild, setSelectedChild] = useState("");
+  const [customChild, setCustomChild] = useState("");
+
+  function switchTab(t: Tab) {
+    setTab(t);
+    window.location.hash = t === "create" ? "" : `#${t}`;
+  }
+
+  const childProps = {
+    selectedChild,
+    onSelectChild: setSelectedChild,
+    customChild,
+    onCustomChildChange: setCustomChild,
+  };
+
+  const tabBtn = (t: Tab, label: string) => (
+    <button
+      type="button"
+      onClick={() => switchTab(t)}
+      className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+        tab === t
+          ? "bg-sky-500 text-white shadow-md shadow-sky-200"
+          : "text-slate-500 hover:bg-slate-100"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -124,9 +151,18 @@ function AdminContent() {
         Add or edit pages and book covers for your children.
       </p>
 
-      <AdminForm />
+      {/* Menu buttons */}
+      <div className="mt-6 flex gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+        {tabBtn("create", "✏️ Create post")}
+        {tabBtn("pages", "📄 Pages")}
+        {tabBtn("covers", "📚 Covers")}
+      </div>
 
-      <CoverManager />
+      <div className="mt-8">
+        {tab === "create" && <AdminForm {...childProps} />}
+        {tab === "pages" && <PagesList {...childProps} />}
+        {tab === "covers" && <CoverManager />}
+      </div>
     </main>
   );
 }
