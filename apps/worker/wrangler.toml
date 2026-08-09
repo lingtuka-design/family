@@ -1,0 +1,26 @@
+name = "family-storybook-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+# ==== D1 database ====
+# Create it first:
+#   wrangler d1 create family-storybook
+# then paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "family-storybook"
+database_id = "00000000-0000-0000-0000-000000000000" # REPLACE: paste the id from `wrangler d1 create family-storybook`
+
+# ==== R2 bucket ====
+# Create it first:
+#   wrangler r2 bucket create family-storybook-images
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "family-storybook-images"
+
+# ==== Optional: protect the write API ====
+# Set the secret instead of putting it in this file:
+#   wrangler secret put ADMIN_TOKEN
+# If set, POST /api/pages requires the "x-admin-token" request header.
+# (The /admin UI itself is protected by Cloudflare Zero Trust / Access.)

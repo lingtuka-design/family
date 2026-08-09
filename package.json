@@ -1,0 +1,26 @@
+{
+  "name": "family-storybook",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,worker -c blue,green \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:web": "npm run dev -w @family-book/web",
+    "dev:worker": "npm run dev -w @family-book/worker",
+    "build:web": "npm run build -w @family-book/web",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "deploy:worker": "npm run deploy -w @family-book/worker",
+    "db:apply": "npm run db:apply -w @family-book/worker",
+    "db:apply:prod": "npm run db:apply:prod -w @family-book/worker"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "allowScripts": {
+    "workerd@1.20250718.0": true,
+    "esbuild@0.21.5": true,
+    "esbuild@0.17.19": true,
+    "sharp@0.33.5": true
+  }
+}
