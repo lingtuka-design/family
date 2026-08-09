@@ -17,25 +17,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      /* Self-healing: if the app's JS bundle fails to load (e.g. a stale
-         cached index.html referencing a bundle removed by a newer deploy),
-         reload once to fetch the fresh page. */
-      window.addEventListener(
-        "error",
-        function (e) {
-          if (
-            e.target &&
-            e.target.tagName === "SCRIPT" &&
-            !window.__familyStorybookReloaded
-          ) {
-            window.__familyStorybookReloaded = true;
-            window.location.reload();
-          }
-        },
-        true
-      );
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

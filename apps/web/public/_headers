@@ -1,7 +1,0 @@
-/* Force HTML to always revalidate so the browser never runs a stale
-   bundle (the cause of "everything disappeared after a deploy") */
-/*
-  Cache-Control: no-cache
-
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
