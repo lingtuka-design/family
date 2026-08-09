@@ -213,9 +213,6 @@ export function Flipbook({ childId }: { childId: string }) {
   const { data: pages, isLoading, isError } = useQuery({
     queryKey: ["pages", childId],
     queryFn: () => fetchPages(childId),
-    /* retry a stalled first request instead of failing immediately */
-    retry: 2,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
