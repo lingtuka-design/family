@@ -14,19 +14,19 @@ function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="flex items-center justify-between">
-        <Link to="/" className="text-sm font-semibold text-slate-500 hover:text-sky-600">
-          ← Home
+      <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <Link to="/" className="text-sm font-bold text-slate-600 hover:text-sky-600">
+          ← Back to Home
         </Link>
         <div className="flex items-center gap-3">
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
-            Admin
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
+            ✓ Admin Active
           </span>
           <a
             href="/cdn-cgi/access/logout"
-            className="rounded-full bg-rose-100 px-3.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-200"
+            className="flex items-center gap-1.5 rounded-full bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow transition hover:bg-rose-600"
           >
-            🔒 Log out
+            🔒 Log Out
           </a>
         </div>
       </header>
