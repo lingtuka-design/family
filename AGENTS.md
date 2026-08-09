@@ -31,7 +31,8 @@ If no Cloudflare deployment is needed (docs, config, etc.), skip step 3 and push
 
 ## Gotchas
 
-- `react-pageflip` requires React 18 — do not upgrade to React 19.
+- The flipbook uses a custom CSS 3D page-turn engine (`apps/web/src/components/PageTurnBook.tsx`) -
+  `react-pageflip` is no longer used. React must stay on v18.
 - `VITE_API_BASE` must be set when building for production — `apps/web/.env.production` already
   contains `https://family-storybook-api.inkhel.workers.dev` (worker account: inkhel).
 - Production Pages deployments require `--branch main` (see step 3).
