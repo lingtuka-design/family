@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { importX509, jwtVerify } from "jose";
 import type { Context } from "hono";
 
 type Bindings = {
@@ -48,8 +48,36 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/gif": "gif",
 };
 
-/** Google's signing keys - Firebase ID tokens are signed with these. */
-const GOOGLE_JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
+/**
+ * Firebase ID tokens are signed with Google's "securetoken" keys, published
+ * as X.509 PEMs (keyed by kid) at the endpoint below. We import each cert
+ * once and cache the map for 12 hours; if a token's kid is unknown we
+ * refresh once (keys rotate) before giving up.
+ */
+const FIREBASE_CERTS_URL =
+  "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
+
+let cachedKeys: Map<string, CryptoKey> | null = null;
+let cachedAt = 0;
+
+async function getFirebaseKeys(): Promise<Map<string, CryptoKey>> {
+  const now = Date.now();
+  if (cachedKeys && now - cachedAt < 12 * 60 * 60 * 1000) {
+    return cachedKeys;
+  }
+  const res = await fetch(FIREBASE_CERTS_URL, {
+    cf: { cacheTtl: 86400, cacheEverything: true },
+  });
+  if (!res.ok) throw new Error("Failed to fetch Firebase certs");
+  const certs = (await res.json()) as Record<string, string>;
+  const keys = new Map<string, CryptoKey>();
+  for (const [kid, pem] of Object.entries(certs)) {
+    keys.set(kid, await importX509(pem, "RS256"));
+  }
+  cachedKeys = keys;
+  cachedAt = now;
+  return keys;
+}
 
 /**
  * Verifies a Firebase ID token (issued by Google for our Firebase project)
@@ -60,11 +88,35 @@ async function verifyFirebaseToken(
   projectId: string
 ): Promise<{ email?: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, GOOGLE_JWKS, {
+    const kid = getTokenKid(token);
+    if (!kid) return null;
+
+    let keys = await getFirebaseKeys();
+    let key = keys.get(kid);
+    if (!key) {
+      /* key rotation - force a refresh and try once more */
+      cachedKeys = null;
+      keys = await getFirebaseKeys();
+      key = keys.get(kid);
+      if (!key) return null;
+    }
+
+    const { payload } = await jwtVerify(token, key, {
       issuer: `https://securetoken.google.com/${projectId}`,
       audience: projectId,
     });
     return payload as { email?: string };
+  } catch {
+    return null;
+  }
+}
+
+function getTokenKid(token: string): string | null {
+  try {
+    const header = JSON.parse(
+      atob(token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))
+    );
+    return typeof header.kid === "string" ? header.kid : null;
   } catch {
     return null;
   }
