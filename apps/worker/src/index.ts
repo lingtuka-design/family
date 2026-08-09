@@ -46,11 +46,18 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/gif": "gif",
 };
 
+const ALLOWED_ADMIN_EMAILS = ["lingtuka@gmail.com", "lani1990tluangi@gmail.com"];
+
 /**
- * Guard for write endpoints. If the ADMIN_TOKEN secret is not set,
- * the API is considered open (rely on Cloudflare Access on the /admin UI).
+ * Guard for write endpoints.
+ * Checks Cloudflare Access user email header or ADMIN_TOKEN secret.
  */
 function adminOnly(c: Context<{ Bindings: Bindings }>): Response | null {
+  const userEmail = c.req.header("cf-access-authenticated-user-email");
+  if (userEmail && !ALLOWED_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+    return c.json({ error: "Forbidden: Unauthorized email address" }, 403);
+  }
+
   const expected = c.env.ADMIN_TOKEN;
   if (!expected) return null;
   if (c.req.header("x-admin-token") === expected) return null;
