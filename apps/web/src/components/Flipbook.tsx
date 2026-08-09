@@ -215,26 +215,30 @@ export function Flipbook({ childId }: { childId: string }) {
     queryFn: () => fetchPages(childId),
   });
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [view, setView] = useState({
+    width: typeof window !== "undefined" ? Math.min(window.innerWidth - 32, 1024) : 800,
+    height: typeof window !== "undefined" ? window.innerHeight : 600,
+  });
   const [currentPage, setCurrentPage] = useState(0);
 
-  /* Measure the container (and viewport height) responsively. */
+  /* Measure container responsively whenever pages finish loading or window resizes. */
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const update = () => {
+      const el = containerRef.current;
+      const measuredWidth = el?.clientWidth || Math.min(window.innerWidth - 32, 1024);
+      setView({ width: measuredWidth, height: window.innerHeight });
+    };
 
-    const update = () => setView({ width: el.clientWidth, height: window.innerHeight });
     update();
+    const timer = setTimeout(update, 50);
 
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
     window.addEventListener("resize", update);
     return () => {
-      ro.disconnect();
+      clearTimeout(timer);
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [pages, isLoading]);
 
   /* One story page per flipbook page. On desktop the book shows two
      pages per spread; on mobile a single page fills the width. */
