@@ -75,16 +75,21 @@ function LazyPortrait({
 
 /* ------------------------------------------------------------------ */
 /*  Story page - the portrait PNG and the story text on ONE page.      */
-/*  Image on top (bg_color behind it), text directly below.            */
+/*  Desktop: picture on the left, text on the right.                   */
+/*  Mobile:  picture on top, text directly below.                      */
 /* ------------------------------------------------------------------ */
 
-function StoryPage({ page, eager }: { page: StoryPage; eager: boolean }) {
+function StoryPage({ page, eager, isMobile }: { page: StoryPage; eager: boolean; isMobile: boolean }) {
+  const imageArea = isMobile
+    ? "relative flex h-[46%] items-center justify-center p-3"
+    : "relative flex w-1/2 items-center justify-center p-4";
+  const textArea = isMobile
+    ? "flex flex-1 flex-col overflow-y-auto bg-white px-5 py-4"
+    : "flex w-1/2 flex-col overflow-y-auto bg-white px-6 py-5";
+
   return (
-    <div className="flex h-full w-full flex-col">
-      <div
-        className="relative flex h-[46%] items-center justify-center p-3"
-        style={{ backgroundColor: page.bg_color }}
-      >
+    <div className={`flex h-full w-full ${isMobile ? "flex-col" : "flex-row"}`}>
+      <div className={imageArea} style={{ backgroundColor: page.bg_color }}>
         <LazyPortrait
           src={page.image_url}
           alt={`${page.child_name} - page ${page.page_number}`}
@@ -95,7 +100,7 @@ function StoryPage({ page, eager }: { page: StoryPage; eager: boolean }) {
           {page.page_number}
         </span>
       </div>
-      <div className="flex flex-1 flex-col overflow-y-auto bg-white px-5 py-4">
+      <div className={textArea}>
         <h2 className="font-serif text-lg font-semibold text-slate-800">{page.child_name}</h2>
         <p className="mt-2 whitespace-pre-wrap font-serif text-sm leading-6 text-slate-700">
           {page.story_text}
@@ -153,7 +158,7 @@ export function Flipbook({ childId }: { childId: string }) {
 
     return pages.map((page, i) => (
       <FlipPage key={page.id} style={{ width: pageWidth, height: pageHeight }}>
-        <StoryPage page={page} eager={Math.abs(i - currentPage) <= 2} />
+        <StoryPage page={page} eager={Math.abs(i - currentPage) <= 2} isMobile={isMobile} />
       </FlipPage>
     ));
   }, [pages, pageWidth, pageHeight, currentPage]);
