@@ -3,8 +3,8 @@ export interface StoryPage {
   id: number;
   child_name: string;
   page_number: number;
-  image_url: string;
   title: string;
+  image_url: string;
   story_text: string;
   bg_color: string;
   created_at: string;

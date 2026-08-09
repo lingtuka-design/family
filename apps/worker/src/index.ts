@@ -12,8 +12,8 @@ type StoryPage = {
   id: number;
   child_name: string;
   page_number: number;
-  image_url: string;
   title: string;
+  image_url: string;
   story_text: string;
   bg_color: string;
   created_at: string;
@@ -25,10 +25,18 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => origin ?? "*",
-    allowHeaders: ["*"],
+    allowHeaders: ["Content-Type", "x-admin-token"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
+
+/** Accepted image formats - the flipbook crops everything to a 3:2 cover. */
+const IMAGE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
 
 /**
  * Guard for write endpoints. If the ADMIN_TOKEN secret is not set,
@@ -41,9 +49,17 @@ function adminOnly(c: Context<{ Bindings: Bindings }>): Response | null {
   return c.json({ error: "Unauthorized" }, 401);
 }
 
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function keyFromUrl(imageUrl: string): string {
+  return imageUrl.replace(/^\/api\/images\//, "");
+}
+
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-/** List of children with page counts - used by the landing page. */
+/** List of children with page counts - used by the admin dropdown and landing page. */
 app.get("/api/children", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT child_name AS name, COUNT(*) AS pageCount
@@ -54,18 +70,25 @@ app.get("/api/children", async (c) => {
   return c.json(results);
 });
 
-/** All pages of one child's book, ordered. ?child=vena */
+/** Pages of one child (public flipbook) or ALL pages when ?child is omitted (admin). */
 app.get("/api/pages", async (c) => {
   const child = (c.req.query("child") ?? "").trim().toLowerCase();
-  if (!child) return c.json({ error: "Missing 'child' query parameter" }, 400);
+
+  if (child) {
+    const { results } = await c.env.DB.prepare(
+      `SELECT * FROM storybook_pages
+       WHERE LOWER(child_name) = ?
+       ORDER BY page_number ASC`
+    )
+      .bind(child)
+      .all<StoryPage>();
+    return c.json(results);
+  }
 
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM storybook_pages
-     WHERE LOWER(child_name) = ?
-     ORDER BY page_number ASC`
-  )
-    .bind(child)
-    .all<StoryPage>();
+     ORDER BY child_name ASC, page_number ASC`
+  ).all<StoryPage>();
   return c.json(results);
 });
 
@@ -84,7 +107,7 @@ app.get("/api/images/:key{.*}", async (c) => {
   return new Response(object.body, { headers });
 });
 
-/** Upload a new page: multipart form with image, child_name, title, story_text, bg_color. */
+/** Upload a new page: multipart with image, child_name, title, story_text, bg_color. */
 app.post("/api/pages", async (c) => {
   const forbidden = adminOnly(c);
   if (forbidden) return forbidden;
@@ -95,23 +118,20 @@ app.post("/api/pages", async (c) => {
   const title = String(body["title"] ?? "").trim();
   const storyText = String(body["story_text"] ?? "").trim();
   const rawBg = String(body["bg_color"] ?? "");
-  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : "#FFFFFF";
+  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : "#F0F8FF";
   const image = body["image"];
 
   if (!childName) return c.json({ error: "child_name is required" }, 400);
-  if (!title) return c.json({ error: "title is required" }, 400);
   if (!storyText) return c.json({ error: "story_text is required" }, 400);
   if (typeof image !== "object" || !(image instanceof File)) {
     return c.json({ error: "An image file is required" }, 400);
   }
+  const ext = IMAGE_TYPES[image.type];
+  if (!ext) return c.json({ error: "Only PNG, JPG, WebP or GIF images are supported" }, 400);
 
-  const mimeType = image.type || "image/png";
-  const ext = image.name.split(".").pop()?.toLowerCase() || "png";
-
-  // Upload to R2
-  const slug = childName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  const key = `${slug}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-  await c.env.IMAGES.put(key, image, { httpMetadata: { contentType: mimeType } });
+  // Upload to R2, keyed by child slug so images are easy to browse in the dashboard.
+  const key = `${slugify(childName)}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  await c.env.IMAGES.put(key, image, { httpMetadata: { contentType: image.type } });
 
   // Append after the current last page.
   const row = await c.env.DB.prepare(
@@ -124,68 +144,96 @@ app.post("/api/pages", async (c) => {
   const pageNumber = (row?.maxPage ?? 0) + 1;
 
   const imageUrl = `/api/images/${key}`;
-  await c.env.DB.prepare(
-    `INSERT INTO storybook_pages (child_name, page_number, image_url, title, story_text, bg_color, created_at)
+  const result = await c.env.DB.prepare(
+    `INSERT INTO storybook_pages (child_name, page_number, title, image_url, story_text, bg_color, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(childName, pageNumber, imageUrl, title, storyText, bgColor, new Date().toISOString())
+    .bind(childName, pageNumber, title, imageUrl, storyText, bgColor, new Date().toISOString())
     .run();
 
-  return c.json({ ok: true, child_name: childName, page_number: pageNumber });
+  return c.json({ ok: true, id: result.meta.last_row_id, child_name: childName, page_number: pageNumber });
 });
 
-/** Update an existing page (title, story_text, bg_color, optional new image). */
+/** Update a page: multipart with any of child_name, title, story_text, bg_color, image. */
 app.put("/api/pages/:id", async (c) => {
   const forbidden = adminOnly(c);
   if (forbidden) return forbidden;
 
-  const idParam = c.req.param("id");
-  const id = parseInt(idParam, 10);
-  if (isNaN(id)) return c.json({ error: "Invalid page ID" }, 400);
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid page id" }, 400);
 
-  const page = await c.env.DB.prepare(`SELECT * FROM storybook_pages WHERE id = ?`)
+  const existing = await c.env.DB.prepare(
+    `SELECT * FROM storybook_pages WHERE id = ?`
+  )
     .bind(id)
     .first<StoryPage>();
-  if (!page) return c.json({ error: "Page not found" }, 404);
+  if (!existing) return c.json({ error: "Page not found" }, 404);
 
   const body = await c.req.parseBody();
-  const title = String(body["title"] ?? page.title).trim();
-  const storyText = String(body["story_text"] ?? page.story_text).trim();
-  const rawBg = String(body["bg_color"] ?? page.bg_color);
-  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : page.bg_color;
 
-  let imageUrl = page.image_url;
-  const newImage = body["image"];
-  if (typeof newImage === "object" && newImage instanceof File && newImage.size > 0) {
-    const mimeType = newImage.type || "image/png";
-    const ext = newImage.name.split(".").pop()?.toLowerCase() || "png";
-    const slug = page.child_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const key = `${slug}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-    await c.env.IMAGES.put(key, newImage, { httpMetadata: { contentType: mimeType } });
+  const childName = String(body["child_name"] ?? "").trim() || existing.child_name;
+  const title = String(body["title"] ?? "").trim() || existing.title;
+  const storyText = body["story_text"] !== undefined ? String(body["story_text"]).trim() : existing.story_text;
+  const rawBg = String(body["bg_color"] ?? "");
+  const bgColor = /^#[0-9a-fA-F]{6}$/.test(rawBg) ? rawBg.toUpperCase() : existing.bg_color;
+
+  let imageUrl = existing.image_url;
+  const image = body["image"];
+  if (image && typeof image === "object" && image instanceof File) {
+    const ext = IMAGE_TYPES[image.type];
+    if (!ext) return c.json({ error: "Only PNG, JPG, WebP or GIF images are supported" }, 400);
+
+    const key = `${slugify(childName)}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(key, image, { httpMetadata: { contentType: image.type } });
     imageUrl = `/api/images/${key}`;
+
+    // Remove the old image from R2 (best effort).
+    const oldKey = keyFromUrl(existing.image_url);
+    await c.env.IMAGES.delete(oldKey).catch(() => {});
+  }
+
+  // If the page moved to another child, renumber it after the new child's last page.
+  let pageNumber = existing.page_number;
+  if (childName.toLowerCase() !== existing.child_name.toLowerCase()) {
+    const row = await c.env.DB.prepare(
+      `SELECT COALESCE(MAX(page_number), 0) AS maxPage
+       FROM storybook_pages
+       WHERE LOWER(child_name) = ?`
+    )
+      .bind(childName.toLowerCase())
+      .first<{ maxPage: number }>();
+    pageNumber = (row?.maxPage ?? 0) + 1;
   }
 
   await c.env.DB.prepare(
     `UPDATE storybook_pages
-     SET title = ?, story_text = ?, bg_color = ?, image_url = ?
+     SET child_name = ?, page_number = ?, title = ?, image_url = ?, story_text = ?, bg_color = ?
      WHERE id = ?`
   )
-    .bind(title, storyText, bgColor, imageUrl, id)
+    .bind(childName, pageNumber, title, imageUrl, storyText, bgColor, id)
     .run();
 
-  return c.json({ ok: true, id });
+  return c.json({ ok: true, id, page_number: pageNumber });
 });
 
-/** Delete a page. */
+/** Delete a page (and its image from R2). */
 app.delete("/api/pages/:id", async (c) => {
   const forbidden = adminOnly(c);
   if (forbidden) return forbidden;
 
-  const idParam = c.req.param("id");
-  const id = parseInt(idParam, 10);
-  if (isNaN(id)) return c.json({ error: "Invalid page ID" }, 400);
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid page id" }, 400);
+
+  const existing = await c.env.DB.prepare(
+    `SELECT * FROM storybook_pages WHERE id = ?`
+  )
+    .bind(id)
+    .first<StoryPage>();
+  if (!existing) return c.json({ error: "Page not found" }, 404);
 
   await c.env.DB.prepare(`DELETE FROM storybook_pages WHERE id = ?`).bind(id).run();
+  await c.env.IMAGES.delete(keyFromUrl(existing.image_url)).catch(() => {});
+
   return c.json({ ok: true, id });
 });
 

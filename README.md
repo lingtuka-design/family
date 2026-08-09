@@ -151,19 +151,22 @@ CREATE TABLE storybook_pages (
 | Method | Path                    | Description                                       |
 | ------ | ----------------------- | ------------------------------------------------- |
 | GET    | `/api/health`           | Liveness check                                    |
-| GET    | `/api/children`         | `[{ name, pageCount }]` for the landing page      |
+| GET    | `/api/children`         | `[{ name, pageCount }]` for the admin dropdown    |
 | GET    | `/api/pages?child=vena` | Pages of one child, ordered by `page_number`      |
-| GET    | `/api/images/:key`      | Streams a PNG straight from R2 (1-year cache)     |
-| POST   | `/api/pages`            | Multipart: `image` (PNG), `child_name`, `story_text`, `bg_color` |
+| GET    | `/api/pages`            | All pages (admin panel)                           |
+| GET    | `/api/images/:key`      | Streams an image straight from R2 (1-year cache)  |
+| POST   | `/api/pages`            | New page: multipart `image` (PNG/JPG/WebP/GIF), `child_name`, `title`, `story_text`, `bg_color` |
+| PUT    | `/api/pages/:id`        | Update a page (all fields optional; `image` replaces the picture) |
+| DELETE | `/api/pages/:id`        | Delete a page (also removes its image from R2)    |
 
 ## Notes
 
 - **Lazy images**: the flipbook only mounts `<img>` tags for pages within 3 spreads of the
   current page (`onFlip` updates the window), so long books never freeze the browser.
   Images are also `loading="lazy"` + `decoding="async"`.
-- **Responsive flipbook**: the portrait PNG and the story text always share one page. On
-  desktop the picture sits on the left half of the page and the text on the right half; below
-  768px the picture stacks on top with the text below. Desktop shows a 2-page spread (two
-  complete story pages side by side). The book remounts on layout changes so page sizes stay
-  correct.
+- **Responsive flipbook**: each page is a post-style page - a 3:2 cover photo at the top
+  (any image format is auto-cropped to fit), the heading title below it, the story content
+  beneath that, and the page number pinned to the bottom. Desktop shows a 2-page spread
+  (two complete pages side by side); below 768px a single page per screen. The book remounts
+  on layout changes so page sizes stay correct.
 - `react-pageflip` requires `react@18` — do not upgrade React to 19 in this project.

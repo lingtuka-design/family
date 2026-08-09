@@ -85,8 +85,8 @@ function StoryPage({ page, eager }: { page: StoryPage; eager: boolean; isMobile?
       className="flex h-full w-full flex-col justify-between overflow-hidden p-6 sm:p-8"
       style={{ backgroundColor: page.bg_color || "#FFFFFF" }}
     >
-      {/* Top Fixed Image Frame */}
-      <div className="relative flex h-[48%] w-full items-center justify-center overflow-hidden rounded-md bg-slate-100/60 border border-slate-200/50 shadow-inner">
+      {/* Top Fixed Image Frame - always cropped to a 3:2 aspect ratio */}
+      <div className="relative aspect-[3/2] w-full shrink-0 overflow-hidden">
         <LazyPortrait
           src={page.image_url}
           alt={page.title || `${page.child_name} - page ${page.page_number}`}
@@ -168,7 +168,7 @@ export function Flipbook({ childId }: { childId: string }) {
 
     return pages.map((page, i) => (
       <FlipPage key={page.id} style={{ width: pageWidth, height: pageHeight }}>
-        <StoryPage page={page} eager={Math.abs(i - currentPage) <= 2} isMobile={isMobile} />
+        <StoryPage page={page} eager={Math.abs(i - currentPage) <= 2} />
       </FlipPage>
     ));
   }, [pages, pageWidth, pageHeight, currentPage]);
