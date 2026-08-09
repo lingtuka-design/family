@@ -1,4 +1,5 @@
 import type { BookCover, ChildSummary, StoryPage } from "../types";
+import { auth } from "../lib/firebase";
 
 /**
  * Base URL of the Cloudflare Worker API.
@@ -15,20 +16,20 @@ function resolveImageUrl(url: string): string {
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
 }
 
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    /* Cloudflare Access returns 401 (instead of the login redirect) when a
-       session expires mid-page, so the app can show a "sign in again" message. */
-    "X-Requested-With": "XMLHttpRequest",
-  };
-  const token = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
-  if (token) headers["x-admin-token"] = token;
+/** Attach the current Firebase ID token so the worker can verify the admin. */
+async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
 async function errorFrom(res: Response): Promise<Error> {
   if (res.status === 401) {
     return new Error("Session expired (401) — please sign in again.");
+  }
+  if (res.status === 403) {
+    return new Error("You are not authorized to do that (403).");
   }
   return new Error((await res.text()) || `Request failed (${res.status})`);
 }
@@ -51,7 +52,7 @@ export async function fetchChildren(): Promise<ChildSummary[]> {
 export async function addPage(form: FormData): Promise<{ ok: true; id: number; page_number: number }> {
   const res = await fetch(`${API_BASE}/api/pages`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: form,
   });
   if (!res.ok) throw await errorFrom(res);
@@ -61,7 +62,7 @@ export async function addPage(form: FormData): Promise<{ ok: true; id: number; p
 export async function updatePage(id: number, form: FormData): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/pages/${id}`, {
     method: "PUT",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: form,
   });
   if (!res.ok) throw await errorFrom(res);
@@ -71,7 +72,7 @@ export async function updatePage(id: number, form: FormData): Promise<{ ok: true
 export async function deletePage(id: number): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/pages/${id}`, {
     method: "DELETE",
-    headers: authHeaders(),
+    headers: await authHeaders(),
   });
   if (!res.ok) throw await errorFrom(res);
   return res.json();
@@ -87,7 +88,7 @@ export async function fetchCovers(): Promise<BookCover[]> {
 export async function addCover(form: FormData): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/covers`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: form,
   });
   if (!res.ok) throw await errorFrom(res);
@@ -97,7 +98,7 @@ export async function addCover(form: FormData): Promise<{ ok: true; id: number }
 export async function updateCover(id: number, form: FormData): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/covers/${id}`, {
     method: "PUT",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: form,
   });
   if (!res.ok) throw await errorFrom(res);
@@ -107,7 +108,7 @@ export async function updateCover(id: number, form: FormData): Promise<{ ok: tru
 export async function deleteCover(id: number): Promise<{ ok: true; id: number }> {
   const res = await fetch(`${API_BASE}/api/covers/${id}`, {
     method: "DELETE",
-    headers: authHeaders(),
+    headers: await authHeaders(),
   });
   if (!res.ok) throw await errorFrom(res);
   return res.json();

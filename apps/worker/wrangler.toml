@@ -19,6 +19,13 @@ database_id = "a56f746b-bda6-4fb4-bfef-d09e6a7ea3e6"
 binding = "IMAGES"
 bucket_name = "family-storybook-images"
 
+# ==== Firebase auth (admin writes) ====
+# The worker rejects any write unless the request carries a valid Firebase
+# ID token (Authorization: Bearer) whose email is in FIREBASE_ALLOWED_EMAILS.
+[vars]
+FIREBASE_PROJECT_ID = "family-book-6f1aa"           # your Firebase project id
+FIREBASE_ALLOWED_EMAILS = "lingtuka@gmail.com,lani1990tluangi@gmail.com"
+
 # ==== Optional: protect the write API ====
 # Set the secret instead of putting it in this file:
 #   wrangler secret put ADMIN_TOKEN

@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { Context } from "hono";
 
 type Bindings = {
   DB: D1Database;
   IMAGES: R2Bucket;
-  ADMIN_TOKEN?: string;
+  FIREBASE_PROJECT_ID?: string;
+  FIREBASE_ALLOWED_EMAILS?: string;
 };
 
 type StoryPage = {
@@ -33,7 +35,7 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => origin ?? "*",
-    allowHeaders: ["Content-Type", "x-admin-token"],
+    allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
@@ -46,22 +48,55 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const ALLOWED_ADMIN_EMAILS = ["lingtuka@gmail.com", "lani1990tluangi@gmail.com"];
+/** Google's signing keys - Firebase ID tokens are signed with these. */
+const GOOGLE_JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
 /**
- * Guard for write endpoints.
- * Checks Cloudflare Access user email header or ADMIN_TOKEN secret.
+ * Verifies a Firebase ID token (issued by Google for our Firebase project)
+ * and returns its claims, or null if invalid/expired.
  */
-function adminOnly(c: Context<{ Bindings: Bindings }>): Response | null {
-  const userEmail = c.req.header("cf-access-authenticated-user-email");
-  if (userEmail && !ALLOWED_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
-    return c.json({ error: "Forbidden: Unauthorized email address" }, 403);
+async function verifyFirebaseToken(
+  token: string,
+  projectId: string
+): Promise<{ email?: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, GOOGLE_JWKS, {
+      issuer: `https://securetoken.google.com/${projectId}`,
+      audience: projectId,
+    });
+    return payload as { email?: string };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guard for write endpoints: the request must carry a valid Firebase ID
+ * token (Authorization: Bearer <token>) whose email is on the allowlist.
+ * Only lingtuka@gmail.com and lani1990tluangi@gmail.com can write.
+ */
+async function adminOnly(c: Context<{ Bindings: Bindings }>): Promise<Response | null> {
+  const projectId = c.env.FIREBASE_PROJECT_ID;
+  if (!projectId) {
+    return c.json({ error: "Auth not configured on this worker" }, 503);
   }
 
-  const expected = c.env.ADMIN_TOKEN;
-  if (!expected) return null;
-  if (c.req.header("x-admin-token") === expected) return null;
-  return c.json({ error: "Unauthorized" }, 401);
+  const allowed = (c.env.FIREBASE_ALLOWED_EMAILS ?? "lingtuka@gmail.com,lani1990tluangi@gmail.com")
+    .toLowerCase()
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const authHeader = c.req.header("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return c.json({ error: "Unauthorized: missing token" }, 401);
+  }
+
+  const payload = await verifyFirebaseToken(authHeader.slice(7), projectId);
+  if (!payload?.email || !allowed.includes(payload.email.toLowerCase())) {
+    return c.json({ error: "Unauthorized: email not allowed" }, 401);
+  }
+  return null;
 }
 
 function slugify(name: string): string {
@@ -140,7 +175,7 @@ app.get("/api/covers", async (c) => {
 
 /** Upload a book cover: multipart with child_name + image. One cover per child. */
 app.post("/api/covers", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const body = await c.req.parseBody();
@@ -175,7 +210,7 @@ app.post("/api/covers", async (c) => {
 
 /** Update a cover: multipart with optional child_name and/or image. */
 app.put("/api/covers/:id", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const id = Number(c.req.param("id"));
@@ -221,7 +256,7 @@ app.put("/api/covers/:id", async (c) => {
 
 /** Delete a cover (and its image from R2). */
 app.delete("/api/covers/:id", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const id = Number(c.req.param("id"));
@@ -240,7 +275,7 @@ app.delete("/api/covers/:id", async (c) => {
 
 /** Upload a new page: multipart with image, child_name, title, story_text, bg_color. */
 app.post("/api/pages", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const body = await c.req.parseBody();
@@ -287,7 +322,7 @@ app.post("/api/pages", async (c) => {
 
 /** Update a page: multipart with any of child_name, title, story_text, bg_color, image. */
 app.put("/api/pages/:id", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const id = Number(c.req.param("id"));
@@ -349,7 +384,7 @@ app.put("/api/pages/:id", async (c) => {
 
 /** Delete a page (and its image from R2). */
 app.delete("/api/pages/:id", async (c) => {
-  const forbidden = adminOnly(c);
+  const forbidden = await adminOnly(c);
   if (forbidden) return forbidden;
 
   const id = Number(c.req.param("id"));
