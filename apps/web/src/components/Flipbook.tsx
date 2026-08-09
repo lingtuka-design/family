@@ -121,6 +121,91 @@ function StoryPage({ page, eager }: { page: StoryPage; eager: boolean; isMobile?
 }
 
 /* ------------------------------------------------------------------ */
+/*  MobileSlides - single page on screen, pages slide horizontally.    */
+/*  No flip animation; swipe or use the Previous/Next buttons.         */
+/* ------------------------------------------------------------------ */
+
+function MobileSlides({ pages, pageHeight }: { pages: StoryPage[]; pageHeight: number }) {
+  const maxIndex = pages.length - 1;
+  const [index, setIndex] = useState(0);
+  const dragRef = useRef({ startX: 0, active: false });
+  const indexRef = useRef(index);
+  indexRef.current = index;
+
+  function goTo(i: number) {
+    setIndex(Math.min(maxIndex, Math.max(0, i)));
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    dragRef.current = { startX: e.clientX, active: true };
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.active = false;
+    const dx = e.clientX - d.startX;
+    if (dx < -40) goTo(indexRef.current + 1);
+    else if (dx > 40) goTo(indexRef.current - 1);
+  }
+
+  return (
+    <div>
+      {/* slide viewport - one page at a time */}
+      <div
+        className="overflow-hidden rounded-sm bg-white shadow-[0_0_16px_rgba(0,0,0,0.10)]"
+        style={{ height: pageHeight, touchAction: "pan-y" }}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <div
+          className="flex h-full transition-transform duration-300 ease-out"
+          style={{
+            width: `${pages.length * 100}%`,
+            transform: `translateX(-${index * (100 / pages.length)}%)`,
+          }}
+        >
+          {pages.map((page, i) => (
+            <div
+              key={page.id}
+              className="h-full shrink-0"
+              style={{ width: `${100 / pages.length}%` }}
+            >
+              <StoryPage page={page} eager={Math.abs(i - index) <= 1} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Previous / Next */}
+      <div className="mt-5 flex items-center justify-center gap-6">
+        <button
+          type="button"
+          onClick={() => goTo(index - 1)}
+          disabled={index === 0}
+          className="rounded-full bg-white/80 px-5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ← Previous
+        </button>
+        <span className="text-sm font-bold text-slate-500">
+          {index + 1} / {pages.length}
+        </span>
+        <button
+          type="button"
+          onClick={() => goTo(index + 1)}
+          disabled={index === maxIndex}
+          className="rounded-full bg-white/80 px-5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Flipbook                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -195,36 +280,41 @@ export function Flipbook({ childId }: { childId: string }) {
   return (
     <div className="flex flex-col items-center py-8">
       <div ref={containerRef} className="w-full max-w-5xl">
-        {pageWidth > 0 && (
-          <HTMLFlipBook
-            key={bookKey}
-            width={pageWidth}
-            height={pageHeight}
-            size="fixed"
-            minWidth={280}
-            maxWidth={pageWidth}
-            minHeight={280}
-            maxHeight={pageHeight}
-            drawShadow
-            flippingTime={600}
-            usePortrait={false}
-            startZIndex={0}
-            autoSize={false}
-            maxShadowOpacity={0.55}
-            showCover={false}
-            mobileScrollSupport
-            clickEventForward={false}
-            useMouseEvents
-            swipeDistance={30}
-            showPageCorners
-            disableFlipByClick={false}
-            startPage={0}
-            className=""
-            style={{ margin: "0 auto" }}
-            onFlip={(e) => setCurrentPage((e as { data: number }).data)}
-          >
-            {children}
-          </HTMLFlipBook>
+        {pageWidth > 0 && pages && pages.length > 0 && (
+          isMobile ? (
+            /* mobile: single page, sliding - no flip animation */
+            <MobileSlides pages={pages} pageHeight={pageHeight} />
+          ) : (
+            <HTMLFlipBook
+              key={bookKey}
+              width={pageWidth}
+              height={pageHeight}
+              size="fixed"
+              minWidth={280}
+              maxWidth={pageWidth}
+              minHeight={280}
+              maxHeight={pageHeight}
+              drawShadow
+              flippingTime={600}
+              usePortrait={false}
+              startZIndex={0}
+              autoSize={false}
+              maxShadowOpacity={0.55}
+              showCover={false}
+              mobileScrollSupport
+              clickEventForward={false}
+              useMouseEvents
+              swipeDistance={30}
+              showPageCorners
+              disableFlipByClick={false}
+              startPage={0}
+              className=""
+              style={{ margin: "0 auto" }}
+              onFlip={(e) => setCurrentPage((e as { data: number }).data)}
+            >
+              {children}
+            </HTMLFlipBook>
+          )
         )}
       </div>
       {/* soft shadow under the book, like it is lying on a table */}
